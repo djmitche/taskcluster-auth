@@ -183,6 +183,7 @@ api.declare({
     description:  input.description,
     accessToken:  accessToken,
     expires:      new Date(input.expires),
+    scopes:       [], // TODO
     details: {
       created:      new Date().toJSON(),
       lastModified: new Date().toJSON(),
@@ -637,7 +638,8 @@ api.declare({
         lastModified: new Date().toJSON(),
         lastDateUsed: new Date().toJSON(),
         lastRotated:  new Date().toJSON()
-      }
+      },
+      scopes:         []
     }, true).then(client => {
       return this.publisher.clientCreated({clientId: client.clientId});
     });

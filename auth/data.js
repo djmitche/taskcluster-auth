@@ -14,6 +14,17 @@ var Client = Entity.configure({
     description:    Entity.types.Text,
     accessToken:    Entity.types.EncryptedText,
     expires:        Entity.types.Date,
+    details:        Entity.types.JSON
+  },
+  context:          ['resolver']
+}).configure({
+  version:          2,
+  signEntities:     true,
+  properties: {
+    clientId:       Entity.types.String,
+    description:    Entity.types.Text,
+    accessToken:    Entity.types.EncryptedText,
+    expires:        Entity.types.Date,
     /**
      * Details object with properties:
      * - created          // Time when client was created
@@ -22,14 +33,22 @@ var Client = Entity.configure({
      * - lastRotated      // Last time accessToken was reset
      * (more properties may be added in the future)
      */
-    details:        Entity.types.JSON
+    details:        Entity.types.JSON,
+    scopes:         Entity.types.JSON  // new in v2
   },
-  context:          ['resolver']
+  context:          ['resolver'],
+  migrate(item) {
+    item.scopes = [];
+    return item;
+  }
 });
 
 /** Get scopes granted to this client */
 Client.prototype.expandedScopes = function() {
-  return this.resolver.resolve(['assume:client-id:' + this.clientId]);
+  return this.resolver.resolve(
+      // resolve the client's scopes plus the client-id role
+      this.scopes.concat(['assume:client-id:' + this.clientId])
+    );
 };
 
 /** Get JSON representation of client */
@@ -69,7 +88,8 @@ Client.ensureRootClient = function(accessToken) {
       lastModified:   new Date().toJSON(),
       lastDateUsed:   new Date().toJSON(),
       lastRotated:    new Date().toJSON()
-    }
+    },
+    scopes:           [],
   }, true);
 };
 
