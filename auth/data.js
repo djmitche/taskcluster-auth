@@ -61,6 +61,7 @@ Client.prototype.json = function() {
     lastModified:   this.details.lastModified,
     lastDateUsed:   this.details.lastDateUsed,
     lastRotated:    this.details.lastRotated,
+    scopes:         this.scopes,
     expandedScopes: this.expandedScopes()
   };
 };
@@ -89,7 +90,7 @@ Client.ensureRootClient = function(accessToken) {
       lastDateUsed:   new Date().toJSON(),
       lastRotated:    new Date().toJSON()
     },
-    scopes:           [],
+    scopes:           [], // TODO
   }, true);
 };
 
