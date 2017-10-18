@@ -1,5 +1,6 @@
 import re
 import unittest
+import random
 
 
 class BasicResolver(object):
@@ -175,23 +176,35 @@ class ParameterizedResolver(BasicResolver):
         return scopes
 
     def expandScopes(self, scopes):
-        scopes = set(scopes)
+        scopes = {s: set() for s in scopes}
+        def add_scope(scope, for_role):
+            scopes.setdefault(scope, set()).add(for_role)
+        def shuffled(l):
+            l = list(l)
+            random.shuffle(l)
+            return l
+
         iterations = 0
         while True:
             iterations += 1
             if iterations > 100:
                 raise RuntimeError('maxium role expansion depth reached')
             prev = scopes.copy()
-            for role, role_scopes in self.roles.iteritems():
+            for role, role_scopes in shuffled(self.roles.iteritems()):
                 if role.endswith('*'):
                     pfx = 'assume:{}'.format(role[:-1])
-                    for s in prev:
-                        if not s.startswith(pfx):
+                    for scope, already_expanded in shuffled(prev.iteritems()):
+                        if role in already_expanded:
                             continue
-                        scopes.update(self.starMatch(s[len(pfx):], role_scopes))
+                        if not scope.startswith(pfx):
+                            continue
+                        for s in shuffled(self.starMatch(scope[len(pfx):], role_scopes)):
+                            add_scope(s, role)
+                            scopes[s].update(already_expanded)
                 else:
                     if self.satisfies(scopes, 'assume:{}'.format(role)):
-                        scopes |= set(role_scopes)
+                        for s in role_scopes:
+                            add_scope(s, role)
             if scopes == prev:
                 break
 
@@ -243,7 +256,31 @@ class ParameterizedResolverTests(CommonTests):
         })
         self.assertEqual(
                 sorted(res.expandScopes(['assume:A'])),
-                sorted(['assume*', 'bar']))
+                sorted(['assume:A', 'assume:ACC', 'assume:BC']))
+
+    def test_parameterized_circular_params(self):
+        res = self.resolver({
+            'A*': ['assume:B<...>C', 'assume:C<...>D'],
+            'B*': ['assume:A<...>C', 'assume:C<...>D'],
+            'C*': ['assume:A<...>C', 'assume:B<...>D'],
+        })
+	self.assertEqual(
+		sorted(res.expandScopes(['assume:A'])),
+                # the list terminates without repeating.. but is this stable?
+		sorted([
+		    'assume:A',
+		    'assume:ACC',
+		    'assume:ACDC',
+		    'assume:ADC',
+		    'assume:ADDC',
+		    'assume:BC',
+		    'assume:BCDD',
+		    'assume:BDD',
+		    'assume:CCD',
+		    'assume:CD',
+		    'assume:CDDD',
+		    ]))
+
 
     def test_parameterized_star_in_replacement(self):
         res = self.resolver({
