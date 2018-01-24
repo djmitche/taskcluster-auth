@@ -225,7 +225,9 @@ class ScopeResolver extends events.EventEmitter {
     this._clients = clients;
 
     // Construct client cache
-    console.log('start building clientCache');
+    console.log('clientCache start');
+    let start = process.hrtime();
+    const ms = diff => (diff[0] * 1000000000 + diff[1]) / 1000000;
     this._clientCache = {};
     for (let client of this._clients) {
       var scopes = this.resolve(client.unexpandedScopes);
@@ -233,7 +235,7 @@ class ScopeResolver extends events.EventEmitter {
       client.expandedScopes = scopes;
       this._clientCache[client.clientId] = client;
     }
-    console.log('done building clientCache');
+    console.log('clientCache done ms', ms(process.hrtime(start)));
   }
 
   /**
