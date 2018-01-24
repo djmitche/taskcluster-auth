@@ -225,7 +225,7 @@ class ScopeResolver extends events.EventEmitter {
     this._clients = clients;
 
     // Construct client cache
-    console.log('clientCache start');
+    console.log('clientCache start', new Date());
     let start = process.hrtime();
     const ms = diff => (diff[0] * 1000000000 + diff[1]) / 1000000;
     this._clientCache = {};
@@ -248,10 +248,7 @@ class ScopeResolver extends events.EventEmitter {
    */
   static cycleCheck(roles) {
     let paramRules = [];
-    let start;
-    const ms = diff => (diff[0] * 1000000000 + diff[1]) / 1000000;
 
-    start = process.hrtime();
     // find the set of parameterized rules and strip * and parameters from them
     let roleIds = roles.map(({roleId}) => roleId);
     roles.forEach(({roleId, scopes}) => {
@@ -268,9 +265,7 @@ class ScopeResolver extends events.EventEmitter {
         paramRules.push({roleId, scope});
       });
     });
-    console.log('cycleCheck A ms', ms(process.hrtime(start)));
 
-    start = process.hrtime();
     // turn those into edges, with an edge wherever r is a prefix of s or s is a prefix of r
     let edges = {};
     for (let {roleId: roleId1, scope: scope1} of paramRules) {
@@ -284,9 +279,7 @@ class ScopeResolver extends events.EventEmitter {
         }
       }
     }
-    console.log('cycleCheck B ms', ms(process.hrtime(start)));
 
-    start = process.hrtime();
     // Use depth-first searches from each node to find any cycles in the edges collected above.
     // The graph may not be connected, so we must start from each node, but once we have visited
     // a node we need not start there again
@@ -315,7 +308,6 @@ class ScopeResolver extends events.EventEmitter {
         throw new Error(`Found cycle in roles: ${cycle.map(c => `${c}*`).join(' -> ')}`);
       }
     });
-    console.log('cycleCheck C ms', ms(process.hrtime(start)));
   };
 
   /**
@@ -324,23 +316,30 @@ class ScopeResolver extends events.EventEmitter {
    * {roleId, scopes}.
    */
   buildResolver(roles) {
-    console.log('buildResolver start');
+    console.log('buildresolver start', new Date());
+    let start = process.hrtime();
+    const ms = diff => (diff[0] * 1000000000 + diff[1]) / 1000000;
+
+    console.log('cycleCheck start', new Date());
+    let start2 = process.hrtime();
     this._monitor.timer('cycleCheck', () => ScopeResolver.cycleCheck(roles));
+    console.log('cycleCheck done ms', ms(process.hrtime(start2)));
 
     // encode the roles as rules, including the `assume:` prefix, and marking up
     // the expansions of any parameterized scopes as {scope, index}, where index
     // is the index in the input at which the replacement begins (the index of
     // the `*`)
 
+    console.log('generateTrie start', new Date());
+    let start3 = process.hrtime();
     let rules = roles.map(({roleId, scopes}) => ({pattern: `assume:${roleId}`, scopes}));
-    console.log('generateTrie start');
     let dfa = this._monitor.timer('generateTrie', () => generateTrie(rules));
-    console.log('generateTrie end');
+    console.log('generateTrie done ms', ms(process.hrtime(start3)));
 
     // LRU of resolved scope-sets, to increase probability of hits, we shall
     // omit all input scopes that doesn't match ASSUME_PREFIX (ie. match 'assume:')
     let lru = new LRU({maxElements: 10000});
-    console.log('buildResolver done');
+    console.log('buildResolver done ms', ms(process.hrtime(start)));
 
     return (inputs) => {
       inputs.sort(scopeCompare);
