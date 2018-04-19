@@ -7,6 +7,7 @@ var Promise     = require('promise');
 var _           = require('lodash');
 var signaturevalidator = require('./signaturevalidator');
 let ScopeResolver      = require('./scoperesolver');
+let Entity      = require('azure-entities');
 
 /**
  * Helper to return a role as defined in the blob to one suitable for return.
@@ -125,7 +126,7 @@ api.declare({
   route:      '/clients/',
   query: {
     prefix:  /^[A-Za-z0-9!@/:.+|_-]+$/, // should match clientId above
-    continuationToken: /./,
+    continuationToken: Entity.continuationTokenPattern,
     limit: /^[0-9]+$/,
   },
   name:       'listClients',
